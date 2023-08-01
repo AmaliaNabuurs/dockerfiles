@@ -11,28 +11,39 @@ def check_protein_presence(fasta_file, blast_file, output_file):
                 protein_name = line.strip()[1:]
                 protein_names.add(protein_name)
 
-    # Process the table file and write new table with presence information
-    with open(blast_file, 'r', newline='') as table, open(output_file, 'w', newline='') as output:
+    # Read the BLAST file into a list of lists
+    blast_data = []
+    with open(blast_file, 'r', newline='') as table:
         reader_blast = csv.reader(table, delimiter='\t')
+        header = next(reader_blast)  # Skip the header line
+        for row in reader_blast:
+            blast_data.append(row)
+
+    # Process the table file and write new table with presence information
+    with open(output_file, 'w', newline='') as output:
         writer = csv.writer(output, delimiter='\t')
 
-         # Skip the header line
-        next(reader_blast)
-
-        # Extract the protein names from the first column of the table file
-        table_protein_names = [row[0] for row in reader_blast]
-
-        # Reset the file pointer to the beginning of the table file
-        table.seek(0)
-
-        # Write the header line
-        header = ['protein_id', 'BLASTp']
+        # Write the header line with the new column
+        header = ['protein_id', 'BLASTp', 'Homology_proteins']
         writer.writerow(header)
 
         # Iterate through each protein name in the FASTA file
         for protein_name in protein_names:
-            presence = 'homology' if protein_name in table_protein_names else 'no_homology'
-            writer.writerow([protein_name, presence])
+            found_proteins = []
+            presence = 'no_homology'
+            
+            # Check if the protein is in the table and collect the found homology proteins
+            for row in blast_data:
+                if protein_name == row[0]:
+                    found_proteins.append(row[1])
+                    presence = 'homology'
+            
+            # Check if found_proteins is empty (i.e., no homologous proteins found)
+            if not found_proteins:
+                found_proteins = ['NA']
+            
+            # Write the row with the protein name, presence information, and found proteins
+            writer.writerow([protein_name, presence, ','.join(found_proteins)])
 
     print(f"Protein presence has been checked and the new table is saved in '{output_file}'.")
 
